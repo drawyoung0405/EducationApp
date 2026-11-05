@@ -90,6 +90,14 @@ function App() {
     _useState10 = _slicedToArray(_useState1, 2),
     filter = _useState10[0],
     setFilter = _useState10[1];
+  var _studySourceState = useState('new'),
+    _studySourceState2 = _slicedToArray(_studySourceState, 2),
+    studySource = _studySourceState2[0],
+    setStudySource = _studySourceState2[1];
+  var _studyListHistoryState = useState([]),
+    _studyListHistoryState2 = _slicedToArray(_studyListHistoryState, 2),
+    studyListHistory = _studyListHistoryState2[0],
+    setStudyListHistory = _studyListHistoryState2[1];
   var _useState11 = useState(''),
     _useState12 = _slicedToArray(_useState11, 2),
     query = _useState12[0],
@@ -110,6 +118,23 @@ function App() {
     _useState20 = _slicedToArray(_useState19, 2),
     sessionKnown = _useState20[0],
     setSessionKnown = _useState20[1];
+  var _sessionLearnedState = useState(function () { return new Set(); }),
+    _sessionLearnedState2 = _slicedToArray(_sessionLearnedState, 2),
+    sessionLearned = _sessionLearnedState2[0],
+    setSessionLearned = _sessionLearnedState2[1];
+  var _studyDoneState = useState(function () { return new Set(); }),
+    _studyDoneState2 = _slicedToArray(_studyDoneState, 2),
+    studyDone = _studyDoneState2[0],
+    setStudyDone = _studyDoneState2[1];
+  var _batchHistoryState = useState([]),
+    _batchHistoryState2 = _slicedToArray(_batchHistoryState, 2),
+    batchHistory = _batchHistoryState2[0],
+    setBatchHistory = _batchHistoryState2[1];
+  var _futureBatchesState = useState([]),
+    _futureBatchesState2 = _slicedToArray(_futureBatchesState, 2),
+    futureBatches = _futureBatchesState2[0],
+    setFutureBatches = _futureBatchesState2[1];
+  var practiceCache = React.useRef({});
   var _useState21 = useState(function () {
       return initialWords.filter(function (w) {
         return +w.band === 1 && !readSet('hanamiKnown').has(w.id);
@@ -126,6 +151,10 @@ function App() {
   var sessionTotal = deck.length;
   var streakGap = dayGap(lastStudy, todayKey());
   var activeStreak = streakGap >= 0 && streakGap <= 1 ? streak : 0;
+  var buildStudyDeck = function buildStudyDeck(source, targetBand, done) {
+    var skipped = done || new Set();
+    return words.filter(function (w) { return +w.band === +targetBand && (source === 'new' ? !known.has(w.id) : source === 'saved' ? saved.has(w.id) : source === 'learned' ? known.has(w.id) : true) && !skipped.has(w.id); }).slice(0, 10);
+  };
   useEffect(function () {
     localStorage.setItem('hanamiDatasetVersion', STORAGE_VERSION);
     localStorage.setItem('hanamiWords', JSON.stringify(words));
@@ -185,16 +214,14 @@ function App() {
       return next;
     });
   };
-  var changeBand = function changeBand(value) {
-    var b = Number(value);
-    setBand(b);
-    setDeck(words.filter(function (w) {
-      return +w.band === b && !known.has(w.id);
-    }).slice(0, 10));
-    setIdx(0);
-    setSessionKnown(0);
-    setRevealed(false);
-  };
+  var savePracticePosition = function savePracticePosition() { practiceCache.current[''.concat(band, ':', studySource)] = { deck: deck, idx: idx, sessionKnown: sessionKnown, sessionLearned: _toConsumableArray(sessionLearned), studyDone: _toConsumableArray(studyDone), batchHistory: batchHistory, futureBatches: futureBatches }; };
+  var restorePractice = function restorePractice(source, targetBand) { var savedSession = practiceCache.current[''.concat(targetBand, ':', source)]; setStudySource(source); setBand(targetBand); setDeck(savedSession ? savedSession.deck : buildStudyDeck(source, targetBand, new Set())); setIdx(savedSession ? savedSession.idx : 0); setSessionKnown(savedSession ? savedSession.sessionKnown : 0); setSessionLearned(new Set(savedSession ? savedSession.sessionLearned : [])); setStudyDone(new Set(savedSession ? savedSession.studyDone : [])); setBatchHistory(savedSession ? savedSession.batchHistory || [] : []); setFutureBatches(savedSession ? savedSession.futureBatches || [] : []); setRevealed(false); };
+  var changeBand = function changeBand(value) { var b = Number(value); if (b === band) return; savePracticePosition(); restorePractice(studySource, b); };
+  var changeStudySource = function changeStudySource(value) { if (value === studySource) return; savePracticePosition(); setStudyListHistory(function (prev) { return prev.concat([studySource]); }); restorePractice(value, band); };
+  var returnToPreviousStudyList = function returnToPreviousStudyList() { if (!studyListHistory.length) return; savePracticePosition(); var previous = studyListHistory[studyListHistory.length - 1]; setStudyListHistory(function (prev) { return prev.slice(0, -1); }); restorePractice(previous, band); };
+  var restoreBatch = function restoreBatch(batch) { setDeck(batch.deck); setIdx(Math.max(0, Math.min(batch.idx, batch.deck.length - 1))); setSessionLearned(new Set(batch.learned)); setSessionKnown(batch.learned.length); setRevealed(false); };
+  var showPreviousBatch = function showPreviousBatch() { if (!batchHistory.length) return; var currentBatch = { deck: deck, learned: _toConsumableArray(sessionLearned), idx: idx }; var previous = batchHistory[batchHistory.length - 1]; setBatchHistory(function (prev) { return prev.slice(0, -1); }); setFutureBatches(function (prev) { return prev.concat([currentBatch]); }); restoreBatch(previous); };
+  var showNextBatch = function showNextBatch() { if (!futureBatches.length) return; var next = futureBatches[futureBatches.length - 1]; var currentBatch = { deck: deck, learned: _toConsumableArray(sessionLearned), idx: idx }; setFutureBatches(function (prev) { return prev.slice(0, -1); }); setBatchHistory(function (prev) { return prev.concat([currentBatch]); }); restoreBatch(next); };
   var move = function move(amount) {
     if (!deck.length) return;
     setIdx(function (i) {
@@ -203,42 +230,17 @@ function App() {
     setRevealed(false);
   };
   var markKnown = function markKnown() {
-    if (!current) {
-      setToast('No new words left in this band.');
-      return;
-    }
-    setKnown(function (prev) {
-      return new Set(prev).add(current.id);
-    });
-    setReviewed(function (n) {
-      return n + 1;
-    });
+    if (!current) return;
+    if (studyDone.has(current.id)) { move(1); return; }
+    var nextDone = new Set(studyDone); nextDone.add(current.id);
+    var nextLearned = new Set(sessionLearned); nextLearned.add(current.id);
+    setStudyDone(nextDone); setSessionLearned(nextLearned); setKnown(function (prev) { return new Set(prev).add(current.id); });
+    setReviewed(function (n) { return n + 1; });
     var studyDay = todayKey();
-    if (lastStudy !== studyDay) {
-      setStreak(dayGap(lastStudy, studyDay) === 1 ? function (value) {
-        return value + 1;
-      } : 1);
-      setLastStudy(studyDay);
-    }
-    var progress = sessionKnown + 1;
-    setSessionKnown(progress);
-    setRevealed(false);
-    if (progress >= sessionTotal) {
-      var remaining = words.filter(function (w) {
-        return +w.band === band && !known.has(w.id) && w.id !== current.id;
-      }).slice(0, 10);
-      if (remaining.length) {
-        setDeck(remaining);
-        setIdx(0);
-        setSessionKnown(0);
-      } else {
-        setDeck([]);
-        setIdx(0);
-        setToast('You learned all the words in this band!');
-      }
-    } else setIdx(function (i) {
-      return (i + 1) % sessionTotal;
-    });
+    if (lastStudy !== studyDay) { setStreak(dayGap(lastStudy, studyDay) === 1 ? function (value) { return value + 1; } : 1); setLastStudy(studyDay); }
+    setSessionKnown(nextLearned.size); setRevealed(false);
+    if (nextLearned.size >= sessionTotal) { setBatchHistory(function (prev) { return prev.concat([{ deck: deck, learned: _toConsumableArray(nextLearned), idx: sessionTotal - 1 }]); }); setFutureBatches([]); var remaining = buildStudyDeck(studySource, band, nextDone); if (remaining.length) { setDeck(remaining); setIdx(0); setSessionKnown(0); setSessionLearned(new Set()); } else { setDeck([]); setIdx(0); setToast('You finished this practice list. Use Previous session to review or choose another list.'); } }
+    else { var nextIndex = (idx + 1) % sessionTotal, scanned = 0; while (scanned < sessionTotal && nextLearned.has(deck[nextIndex].id)) { nextIndex = (nextIndex + 1) % sessionTotal; scanned++; } setIdx(nextIndex); }
   };
   var onCardKey = function onCardKey(event) {
     if (event.key === ' ' || event.key === 'Enter') {
@@ -462,7 +464,7 @@ function App() {
     className: "panel-hint"
   }, current ? "CARD ".concat(String(idx + 1).padStart(2, '0'), " / ").concat(String(deck.length).padStart(2, '0')) : 'SESSION COMPLETE')), /*#__PURE__*/React.createElement("div", {
     className: "study-body"
-  }, /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("div", { className: "practice-head-actions" }, /*#__PURE__*/React.createElement("label", { className: "panel-hint", htmlFor: "practice-list" }, "PRACTICE LIST"), /*#__PURE__*/React.createElement("select", { className: "filter-select", id: "practice-list", "aria-label": "Choose today's practice list", value: studySource, onChange: function (event) { changeStudySource(event.target.value); } }, /*#__PURE__*/React.createElement("option", { value: "new" }, "New words"), /*#__PURE__*/React.createElement("option", { value: "saved" }, "Saved words"), /*#__PURE__*/React.createElement("option", { value: "learned" }, "Learned words"), /*#__PURE__*/React.createElement("option", { value: "all" }, "All words")), studyListHistory.length > 0 && /*#__PURE__*/React.createElement("button", { className: "btn", onClick: returnToPreviousStudyList }, "\u2190 Back to ", studyListHistory[studyListHistory.length - 1] === "new" ? "New words" : studyListHistory[studyListHistory.length - 1] === "saved" ? "Saved words" : studyListHistory[studyListHistory.length - 1] === "learned" ? "Learned words" : "All words", " list"), /*#__PURE__*/React.createElement("span", { className: "practice-help" }, "Switch lists to return where you left off."), /*#__PURE__*/React.createElement("span", { className: "practice-context" }, (studySource === 'new' ? 'New words' : studySource === 'saved' ? 'Saved words' : studySource === 'learned' ? 'Learned words' : 'All words'), " \xB7 HSK ", band)), /*#__PURE__*/React.createElement("div", {
     className: "flashcard ".concat(revealed ? 'revealed' : ''),
     onClick: function onClick() {
       return setRevealed(function (v) {
@@ -475,7 +477,7 @@ function App() {
     "aria-label": revealed ? 'Hide word meaning' : 'Reveal word meaning'
   }, /*#__PURE__*/React.createElement("div", {
     className: "card-tag"
-  }, "HSK ", (current === null || current === void 0 ? void 0 : current.band) || band, " \xB7 ", (current === null || current === void 0 ? void 0 : current.type) || 'WORD'), current && /*#__PURE__*/React.createElement("button", {
+  }, "HSK ", (current === null || current === void 0 ? void 0 : current.band) || band, " \xB7 ", studySource === 'new' ? 'NEW WORDS' : studySource === 'saved' ? 'SAVED WORDS' : studySource === 'learned' ? 'LEARNED WORDS' : 'ALL WORDS'), current && /*#__PURE__*/React.createElement("button", {
     className: "icon-button card-star ".concat(saved.has(current.id) ? 'saved' : ''),
     "aria-label": saved.has(current.id) ? 'Remove from saved words' : 'Save word',
     onClick: function onClick(e) {
@@ -488,40 +490,25 @@ function App() {
     className: "pinyin"
   }, (current === null || current === void 0 ? void 0 : current.pinyin) || 'No new words'), (revealed || !current) && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
     className: "meaning"
-  }, (current === null || current === void 0 ? void 0 : current.meaning) || 'You have learned all words in this band.'), (current === null || current === void 0 ? void 0 : current.example) && /*#__PURE__*/React.createElement("div", {
+  }, (current === null || current === void 0 ? void 0 : current.meaning) || 'No words are available in this practice list.'), (current === null || current === void 0 ? void 0 : current.example) && /*#__PURE__*/React.createElement("div", {
     className: "example"
   }, current.example)), current && !revealed && /*#__PURE__*/React.createElement("div", {
     className: "reveal-note"
   }, "TAP OR PRESS SPACE TO REVEAL")), /*#__PURE__*/React.createElement("div", {
     className: "controls"
-  }, /*#__PURE__*/React.createElement("button", {
+  }, batchHistory.length > 0 && /*#__PURE__*/React.createElement("button", { className: "btn", onClick: showPreviousBatch }, "\u2190 \xA0 Previous set"), futureBatches.length > 0 && /*#__PURE__*/React.createElement("button", { className: "btn", onClick: showNextBatch }, "Next session \xA0\u2192"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
-    onClick: function onClick() {
-      return move(-1);
-    },
+    onClick: function onClick() { return move(-1); },
     disabled: !deck.length
-  }, "\u2190 \xA0 Prev"), /*#__PURE__*/React.createElement("button", {
+  }, "\u2190 \xA0 Previous"), /*#__PURE__*/React.createElement("button", {
     className: "btn",
-    onClick: function onClick() {
-      return setRevealed(function (v) {
-        return !v;
-      });
-    },
+    onClick: function onClick() { return setRevealed(function (v) { return !v; }); },
     disabled: !current
-  }, revealed ? 'Hide' : 'Reveal'), /*#__PURE__*/React.createElement("button", {
+  }, revealed ? 'Hide meaning' : 'Reveal meaning'), /*#__PURE__*/React.createElement("button", {
     className: "btn btn-sound",
-    onClick: function onClick() {
-      return say(current);
-    },
-    disabled: !current,
-    title: "Play pronunciation",
-    "aria-label": "Play pronunciation"
-  }, "\u25D6))"), /*#__PURE__*/React.createElement("button", {
-    className: "btn btn-primary",
-    onClick: markKnown,
-    disabled: !current
-  }, "Got it \xA0\u2713")), /*#__PURE__*/React.createElement("div", {
-    className: "progress-track"
+    onClick: function onClick() { return say(current); },
+    disabled: !current, title: "Play pronunciation", "aria-label": "Play pronunciation"
+  }, "\u25D6))"), /*#__PURE__*/React.createElement("button", { className: "btn", onClick: function onClick() { return move(1); }, disabled: !deck.length }, "Next \xA0\u2192"), /*#__PURE__*/React.createElement("button", { className: "btn btn-primary", onClick: markKnown, disabled: !current }, "Mark learned \xA0\u2713")), /*#__PURE__*/React.createElement("div", {    className: "progress-track"
   }, /*#__PURE__*/React.createElement("div", {
     className: "progress-fill",
     style: {
@@ -529,7 +516,7 @@ function App() {
     }
   })), /*#__PURE__*/React.createElement("div", {
     className: "progress-copy"
-  }, /*#__PURE__*/React.createElement("span", null, "SESSION PROGRESS"), /*#__PURE__*/React.createElement("span", null, Math.min(sessionKnown, sessionTotal), " / ", sessionTotal || 10)))), /*#__PURE__*/React.createElement("div", {
+  }, /*#__PURE__*/React.createElement("span", null, "LEARNED IN THIS SET"), /*#__PURE__*/React.createElement("span", null, Math.min(sessionKnown, sessionTotal), " / ", sessionTotal || 10)))), /*#__PURE__*/React.createElement("div", {
     className: "right-column"
   }, /*#__PURE__*/React.createElement("section", {
     className: "panel"
@@ -543,7 +530,7 @@ function App() {
     className: "session-count"
   }, Math.min(reviewed, 10), " ", /*#__PURE__*/React.createElement("span", null, "/ 10")), /*#__PURE__*/React.createElement("div", {
     className: "session-caption"
-  }, "words reviewed today"), /*#__PURE__*/React.createElement("div", {
+  }, "words marked learned today"), /*#__PURE__*/React.createElement("div", {
     className: "goal-dots",
     "aria-label": "".concat(Math.min(reviewed, 10), " of 10 words reviewed")
   }, Array.from({
@@ -634,7 +621,7 @@ function App() {
     className: "table-wrap"
   }, /*#__PURE__*/React.createElement("div", {
     className: "word-row header"
-  }, /*#__PURE__*/React.createElement("span", null, "WORD"), /*#__PURE__*/React.createElement("span", null, "MEANING"), /*#__PURE__*/React.createElement("span", null, "LEVEL \xB7 TYPE"), /*#__PURE__*/React.createElement("span", null), /*#__PURE__*/React.createElement("span", null)), visible.map(function (w) {
+  }, /*#__PURE__*/React.createElement("span", null, "WORD"), /*#__PURE__*/React.createElement("span", null, "MEANING"), /*#__PURE__*/React.createElement("span", null, "WRITE"), /*#__PURE__*/React.createElement("span", null, "LEVEL \xB7 TYPE"), /*#__PURE__*/React.createElement("span", null), /*#__PURE__*/React.createElement("span", null)), visible.map(function (w) {
     return /*#__PURE__*/React.createElement("div", {
       className: "word-row",
       key: w.id
@@ -648,7 +635,7 @@ function App() {
       className: "word-meaning"
     }, w.meaning, " ", known.has(w.id) && /*#__PURE__*/React.createElement("span", {
       className: "learned-tag"
-    }, "\xB7 \u2713 Learned")), /*#__PURE__*/React.createElement("span", {
+    }, "\xB7 \u2713 Learned")), /*#__PURE__*/React.createElement("button", { className: "write-btn", type: "button", "aria-label": "Practice writing ".concat(w.hanzi), title: "Show stroke order", onClick: function onClick() { return window.showStrokeGuide(w.hanzi); } }, "Write"), /*#__PURE__*/React.createElement("span", {
       className: "word-level"
     }, "HSK ", w.band || 1, " \xB7 ", w.type || 'word'), /*#__PURE__*/React.createElement("button", {
       className: "speak-btn",
@@ -715,3 +702,95 @@ function Stat(_ref) {
   }, value, " ", /*#__PURE__*/React.createElement("small", null, detail)));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
+
+// Character foundations: introduce common components before showing characters built from them.
+(function () {
+  var waitForApp = window.setInterval(function () {
+    if (!document.querySelector('.nav') || !document.querySelector('.main')) return;
+    window.clearInterval(waitForApp);
+    installCharacterSection();
+  }, 25);
+  function installCharacterSection() {
+  var characterData = window.HSK_CHARACTER_DATA || [];
+  var lessonsByLevel = {};
+  characterData.forEach(function (character) { (lessonsByLevel[character.level] || (lessonsByLevel[character.level] = [])).push(character); });
+  var level = 0;
+  var lessons = lessonsByLevel[level] || [];
+  var viewMode = 'all';
+  var query = '';
+  var pageSize = 48;
+  var style = document.createElement('style');
+  style.textContent = '.char-nav{margin-top:5px}.char-view{display:none}.char-view.active{display:block}.char-intro{margin:0 0 18px;color:#718174;font-size:14px;line-height:1.7}.char-layout{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(250px,.75fr);gap:18px}.char-card{min-height:310px;padding:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;background:radial-gradient(circle at 50% 40%,#fbfdf7,#edf4e9);border:1px solid #dce8dc;border-radius:17px}.char-glyph{font:500 100px/1.2 "Noto Serif SC",serif;color:#284632}.char-pron{margin-top:8px;color:#6d806f}.char-name{margin-top:10px;font-size:17px;font-weight:600;color:#2d4e35}.char-role{max-width:540px;color:#758174;font-size:13px;line-height:1.7;margin:12px 0 0}.char-builds{margin-top:15px;padding:12px 14px;border-radius:10px;background:#fffefa;color:#536653;font-size:12px;line-height:1.8}.char-controls{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}.char-side{padding:20px}.char-side h2{font-size:15px;margin:0 0 10px}.char-side p{font-size:12px;line-height:1.7;color:#778175}.char-step-list{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:5px;margin-top:12px;max-height:370px;overflow:auto}.char-step{position:relative;border:1px solid var(--line);border-radius:8px;background:#fffefa;padding:7px 4px;color:#5f685d;text-align:center;font:20px "Noto Serif SC",serif}.char-step.current{border-color:#6f9a72;background:#edf4eb;color:#31553d}.char-step.done:after{content:"\\2713";position:absolute;right:2px;top:0;color:#426c50;font:9px Arial}.char-progress{font:10px "DM Mono",monospace;color:#8c9588;margin:10px 0}.char-tools{display:flex;gap:7px;align-items:center;margin-top:12px}.char-tools .search{width:100%;min-width:0}.char-tools .filter-select{max-width:125px}.char-component{border:1px solid #dce8dc;border-radius:7px;background:#f7faf5;color:#31553d;padding:3px 8px;margin:2px;font:20px "Noto Serif SC",serif}.char-example{display:inline-block;margin:2px 5px 2px 0;padding:4px 7px;border-radius:6px;background:#f4f6f0;color:#5a6859}.char-footer{font-size:11px;color:#8b9388;margin-top:14px;line-height:1.7}@media(max-width:760px){.char-layout{grid-template-columns:1fr}.char-card{min-height:260px}.char-glyph{font-size:82px}.char-step-list{grid-template-columns:repeat(8,minmax(0,1fr))}}';
+  document.head.appendChild(style);
+  var nav = document.querySelector('.nav');
+  var vocabMain = document.querySelector('.main');
+  var charNav = document.createElement('button');
+  charNav.className = 'char-nav'; charNav.innerHTML = '<span class="nav-icon">部</span><span>Characters</span>';
+  nav.appendChild(charNav);
+  var view = document.createElement('main'); view.className = 'main char-view';
+  view.innerHTML = `<div class="topbar"><div class="eyebrow">YOUR LEARNING SPACE</div><div class="topbar-right"><span class="date">HSK 3.0 &middot; 2021 STANDARD</span><div class="avatar">&#23383;</div></div></div><section class="hero"><div><div class="eyebrow">FULL CHARACTER PATH &middot; LEVELS 1&#8211;3</div><h1>Build from the roots.</h1><p>Start with foundations, then explore every character in the HSK 3.0 (2021) levels 1&#8211;3 vocabulary.</p><label class="level-select">Study set <select id="char-level" aria-label="Choose HSK character level"><option value="0">Foundations</option><option value="1">HSK 1</option><option value="2">HSK 2</option><option value="3">HSK 3</option></select></label></div></section><p class="char-intro">The path includes all 899 distinct Han characters found in HSK 3.0 (2021) vocabulary levels 1&#8211;3, plus 286 recursive building components. Each entry includes pinyin, meaning, radical, component breakdown, and vocabulary examples.</p><div class="char-layout"><section class="panel"><div class="panel-head"><h2 id="char-heading">Character 1</h2><span class="panel-hint" id="char-band">FOUNDATIONS</span></div><div class="study-body"><div class="char-card"><div class="char-glyph" id="char-glyph"></div><div class="char-pron" id="char-pron"></div><div class="char-name" id="char-name"></div><p class="char-role" id="char-role"></p><div class="char-builds"><div><strong>Structure:</strong> <span id="char-decomp"></span></div><div><strong>Radical:</strong> <span id="char-radical"></span></div><div><strong>Stroke count (Unicode):</strong> <span id="char-strokes"></span></div><div><strong>Unicode reading:</strong> <span id="char-unihan-reading"></span></div><div><strong>Unicode radical/strokes:</strong> <span id="char-unihan-rs"></span></div><div><strong>Components:</strong> <span id="char-components"></span></div><div style="margin-top:8px"><strong>In HSK vocabulary:</strong><div id="char-examples"></div></div></div></div><div class="char-controls"><button class="btn" id="char-prev">&larr; Previous</button><button class="btn btn-primary" id="char-next">Mark learned &amp; next &rarr;</button></div></div></section><aside class="panel char-side"><h2>Character library</h2><p>Browse foundations first or search all characters in this level. Select any character to study its parts and examples.</p><div class="char-progress" id="char-progress"></div><div class="char-tools"><label class="search-wrap"><span class="search-icon">&#8981;</span><input class="search" id="char-search" type="search" placeholder="Search character or meaning" aria-label="Search characters"></label><select class="filter-select" id="char-mode" aria-label="Choose character view"><option value="all">All characters</option><option value="foundations">Foundations only</option></select></div><div class="char-step-list" id="char-steps"></div><button class="btn load-more" id="char-more">Show more</button><p class="char-footer">Character meanings, pinyin, and decomposition: <a href="https://github.com/skishore/makemeahanzi" target="_blank" rel="noreferrer">Make Me a Hanzi</a>, derived from Unihan and CJKlib (LGPL-3.0-or-later). Stroke counts and radical-stroke references: <a href="https://www.unicode.org/Public/UCD/latest/ucd/Unihan.zip" target="_blank" rel="noreferrer">Unicode Unihan 18.0</a> (Unicode License v3). Vocabulary examples: <a href="https://github.com/ayman-ezz/hsk-3.0-word-list" target="_blank" rel="noreferrer">HSK University HSK 3.0 (2021)</a>, CC BY 4.0.</p></aside></div>`;
+  vocabMain.parentNode.appendChild(view);
+  var index = 0, learned = new Set();
+  try { learned = new Set(JSON.parse(localStorage.getItem('hanamiKnownComponents') || '[]')); } catch (_) {}
+  var validCharacters = new Set(characterData.map(function (item) { return item.character; }));
+  var migrated = new Set(Array.from(learned).filter(function (key) { return validCharacters.has(key); }));
+  lessonsByLevel[1].forEach(function (item) { if (learned.has('1:' + item.character)) migrated.add(item.character); });
+  learned = migrated;
+  function activeDeck() {
+    var deck = lessons.filter(function (item) { return viewMode !== 'foundations' || item.foundation; });
+    if (query) deck = deck.filter(function (item) { return [item.character,item.pinyin,item.meaning,item.radical,item.decomposition].join(' ').toLowerCase().includes(query.toLowerCase()); });
+    return deck;
+  }
+  function render() {
+    var deck = activeDeck();
+    if (index >= deck.length) index = Math.max(0, deck.length - 1);
+    var item = deck[index];
+    if (!item) { view.querySelector('#char-heading').textContent = 'No matching characters'; view.querySelector('#char-glyph').textContent = ''; view.querySelector('#char-pron').textContent = ''; view.querySelector('#char-name').textContent = ''; view.querySelector('#char-role').textContent = ''; view.querySelector('#char-steps').replaceChildren(); view.querySelector('#char-more').hidden = true; return; }
+    view.querySelector('#char-heading').textContent = 'Character ' + (index + 1) + ' of ' + deck.length;
+    view.querySelector('#char-band').textContent = item.level ? 'FIRST IN HSK ' + item.level : 'FOUNDATION COMPONENT';
+    view.querySelector('#char-glyph').textContent = item.character;
+    view.querySelector('#char-pron').textContent = item.pinyin || 'Reading unavailable';
+    view.querySelector('#char-name').textContent = item.meaning || 'Meaning unavailable';
+    view.querySelector('#char-role').textContent = item.etymology || (item.foundation ? 'A foundational character used to build or recognize other forms.' : 'Study its component pattern and see it in the HSK examples below.');
+    view.querySelector('#char-decomp').textContent = item.decomposition || '\u2014';
+    view.querySelector('#char-radical').textContent = item.radical || '\u2014';
+    view.querySelector('#char-strokes').textContent = item.strokeCount || '\u2014';
+    view.querySelector('#char-unihan-reading').textContent = item.unicodePinyin || '\u2014';
+    view.querySelector('#char-unihan-rs').textContent = item.unicodeRadicalStrokes || '\u2014';
+    var components = view.querySelector('#char-components');
+    components.replaceChildren();
+    if (item.components && item.components.length) item.components.forEach(function (component) {
+      var button = document.createElement('button'); button.className = 'char-component'; button.textContent = component;
+      button.setAttribute('aria-label', 'Study component ' + component);
+      button.addEventListener('click', function () { var target = characterData.find(function (entry) { return entry.character === component; }); if (target) { level = target.level; lessons = lessonsByLevel[level]; view.querySelector('#char-level').value = String(level); viewMode = 'all'; view.querySelector('#char-mode').value = 'all'; query = ''; view.querySelector('#char-search').value = ''; index = lessons.findIndex(function (entry) { return entry.character === component; }); render(); } });
+      components.appendChild(button);
+    }); else components.textContent = 'Base character';
+    var examples = view.querySelector('#char-examples'); examples.replaceChildren();
+    (item.examples || []).forEach(function (example) { var tag = document.createElement('span'); tag.className = 'char-example'; tag.textContent = example.word + ' \u00b7 ' + example.pinyin + (example.meaning ? ' \u00b7 ' + example.meaning : ''); examples.appendChild(tag); });
+    view.querySelector('#char-progress').textContent = learned.size + ' / ' + characterData.length + ' characters learned';
+    var list = view.querySelector('#char-steps'); list.replaceChildren();
+    var matches = activeDeck();
+    matches.slice(0,pageSize).forEach(function (entry) { var entryIndex = deck.indexOf(entry); var button = document.createElement('button'); button.className = 'char-step' + (entry === item ? ' current' : '') + (learned.has(entry.character) ? ' done' : ''); button.textContent = entry.character; button.title = entry.character + ' \u00b7 ' + (entry.level ? 'HSK ' + entry.level : 'Foundation') + ' \u00b7 ' + entry.meaning; button.setAttribute('aria-label', button.title); button.addEventListener('click', function () { index = entryIndex; render(); }); list.appendChild(button); });
+    view.querySelector('#char-more').hidden = matches.length <= pageSize;
+    view.querySelector('#char-more').textContent = 'Show more (' + (matches.length - pageSize) + ' remaining)';
+    view.querySelector('#char-prev').disabled = deck.length < 2;
+    view.querySelector('#char-next').disabled = !deck.length;
+  }
+  function selectView(chars) {
+    vocabMain.style.display = chars ? 'none' : '';
+    view.classList.toggle('active', chars);
+    charNav.classList.toggle('active', chars);
+    nav.querySelectorAll('button:not(.char-nav)').forEach(function (button) { button.classList.toggle('active', !chars && button.textContent.indexOf('Overview') >= 0); });
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  charNav.addEventListener('click', function () { selectView(true); });
+  view.querySelector('#char-level').addEventListener('change', function (event) { level = Number(event.target.value); lessons = lessonsByLevel[level] || []; index = 0; pageSize = 48; view.querySelector('#char-band').textContent = level ? 'HSK ' + level : 'FOUNDATIONS'; render(); });
+  view.querySelector('#char-search').addEventListener('input', function (event) { query = event.target.value.trim(); index = 0; pageSize = 48; render(); });
+  view.querySelector('#char-mode').addEventListener('change', function (event) { viewMode = event.target.value; index = 0; render(); });
+  view.querySelector('#char-more').addEventListener('click', function () { pageSize += 48; render(); });
+  nav.querySelectorAll('button:not(.char-nav)').forEach(function (button) { button.addEventListener('click', function () { selectView(false); }); });
+  view.querySelector('#char-next').addEventListener('click', function () { var item = activeDeck()[index]; if (!item) return; learned.add(item.character); localStorage.setItem('hanamiKnownComponents', JSON.stringify(Array.from(learned))); index = (index + 1) % activeDeck().length; render(); });
+  view.querySelector('#char-prev').addEventListener('click', function () { var deck = activeDeck(); index = (index + deck.length - 1) % deck.length; render(); });
+  render();
+  }
+})();

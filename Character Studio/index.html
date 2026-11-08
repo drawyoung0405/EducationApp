@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#15171d">
+  <title>Character Studio</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="/" aria-label="Character Studio home"><span class="brand-mark">✳</span><span>STORY<span class="brand-light">FORGE</span><small>CHARACTER STUDIO</small></span></a>
+      <div class="side-label">WORKSPACE</div>
+      <div class="project-picker"><span class="project-dot"></span><select id="projectSelect" aria-label="Choose project"></select><button id="newProjectBtn" class="icon-button" title="Create project" aria-label="Create project">＋</button></div>
+      <div class="side-heading"><span>CHARACTERS</span><button id="newCharacterBtn" class="tiny-plus" aria-label="New character" title="New character">＋</button></div>
+      <nav id="characterList" class="character-list" aria-label="Characters"></nav>
+      <div class="sidebar-bottom"><div class="mini-avatar">✦</div><div><strong>Character Studio</strong><span>Creative workspace</span></div><span class="online-dot"></span></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar"><div class="breadcrumbs"><span>WORKSPACE</span><b>/</b><strong id="crumbProject">Project</strong><b>/</b><strong id="crumbCharacter">New character</strong></div><div class="topbar-right"><span id="aiStatus" class="status-pill"><i></i> Checking AI setup</span><button id="helpBtn" class="help-button" title="How this studio works">?</button></div></header>
+      <div id="welcome" class="welcome-screen hidden">
+        <div class="welcome-art"><div class="orbit orbit-one"></div><div class="orbit orbit-two"></div><div class="welcome-star">✦</div><div class="welcome-spark spark-one">✧</div><div class="welcome-spark spark-two">✦</div></div>
+        <div class="eyebrow">YOUR FILM STARTS HERE</div><h1>Build the characters<br>your story deserves.</h1><p>Shape an original character, lock in their visual identity, and keep every detail ready for the next scene.</p><button id="welcomeCreate" class="button primary">＋ &nbsp; Create your first character</button>
+      </div>
+
+      <section id="editor" class="editor hidden">
+        <div class="editor-heading"><div><div class="eyebrow">CHARACTER DESIGN</div><h1 id="characterTitle">Untitled character</h1><p id="characterSub">Build a character bible and develop the visual reference.</p></div><div class="heading-actions"><span id="approvalBadge" class="draft-badge">● &nbsp; Draft</span><button id="approveBtn" class="button approve-button">Approve design <span>✓</span></button></div></div>
+        <div class="tabbar"><button class="tab active" data-tab="character">Character bible</button><button class="tab" data-tab="artwork">Visual reference <span id="artCount" class="tab-count">0</span></button><button class="tab" data-tab="history">Version history</button></div>
+        <div id="characterTab" class="tab-content">
+          <div class="editor-grid">
+            <div class="form-column">
+              <div class="section-head"><div><h2>The essentials</h2><p>A strong foundation makes every later shot more consistent.</p></div><span class="step-number">01</span></div>
+              <div class="field-grid">
+                <label class="field span-two"><span>Character name</span><input id="f-name" maxlength="100" placeholder="e.g. Mika Hoshino"></label>
+                <label class="field"><span>Story role</span><input id="f-role" maxlength="1000" placeholder="e.g. Reluctant hero"></label>
+                <label class="field"><span>Age / age range</span><input id="f-age" maxlength="1000" placeholder="e.g. 17"></label>
+                <label class="field span-two"><span>Personality</span><textarea id="f-personality" rows="2" maxlength="1000" placeholder="How do they act, speak, and respond under pressure?"></textarea></label>
+                <label class="field span-two"><span>Backstory & motivation</span><textarea id="f-backstory" rows="3" maxlength="4000" placeholder="What shaped them, and what do they want?"></textarea></label>
+              </div>
+              <div class="section-head second-head"><div><h2>Visual identity</h2><p>Lock the traits artists and future shots need to preserve.</p></div><span class="step-number">02</span></div>
+              <div class="field-grid">
+                <label class="field span-two"><span>Appearance</span><textarea id="f-appearance" rows="3" maxlength="4000" placeholder="Face, hair, build, silhouette, and other defining features"></textarea></label>
+                <label class="field span-two"><span>Clothing & costume</span><textarea id="f-clothing" rows="2" maxlength="1000" placeholder="Signature outfit, materials, accessories"></textarea></label>
+                <label class="field"><span>Color palette</span><input id="f-palette" maxlength="1000" placeholder="e.g. Indigo, cream, vermilion"></label>
+                <label class="field"><span>Distinctive details</span><input id="f-signature_details" maxlength="1000" placeholder="Marks, props, motifs"></label>
+                <label class="field span-two"><span>Art style</span><input id="f-art_style" maxlength="1000" placeholder="e.g. cinematic hand-drawn anime, soft cel shading"></label>
+              </div>
+              <div class="form-footer"><span id="saveState" class="save-state">All changes saved</span><button id="saveBtn" class="button secondary">Save character</button></div>
+            </div>
+            <aside class="assist-column">
+              <div class="assist-card"><div class="assist-icon">✧</div><div class="assist-label">CREATIVE PARTNER</div><h3>Turn an idea into a character.</h3><p>Describe the spark. The character agent will draft a complete, editable character bible for you.</p><textarea id="ideaInput" rows="4" maxlength="4000" placeholder="A quiet teenage mechanic from a floating city who secretly repairs a tiny mechanical bird…"></textarea><button id="draftBtn" class="button dark-button full-width">✦ &nbsp; Draft character with AI</button><div class="assist-note">Your brief stays editable. AI suggestions never approve a design.</div></div>
+              <div class="next-card"><div class="next-icon">▧</div><div><strong>Next: visual reference</strong><p>Generate a production sheet from your approved character details.</p></div><button id="goArtwork" aria-label="Open visual reference">→</button></div>
+            </aside>
+          </div>
+        </div>
+        <div id="artworkTab" class="tab-content hidden">
+          <div class="artwork-layout"><div class="artwork-copy"><div class="eyebrow">DESIGN DEVELOPMENT</div><h2>Give your character<br>a visual anchor.</h2><p>Generate a reference sheet from the character bible. Use it to review their silhouette, face, expressions, and signature colors before they move into a storyboard.</p><div class="art-specs"><div><span>01</span><p>Full-body front view</p></div><div><span>02</span><p>Face and expressions</p></div><div><span>03</span><p>Palette and side view</p></div></div><div class="revision-box"><label for="revisionInput">REQUEST A CHANGE</label><textarea id="revisionInput" rows="2" placeholder="e.g. Make the jacket shorter, keep the face and color palette"></textarea><button id="reviseBtn" class="button secondary full-width">Revise this sheet</button></div></div><div class="art-preview-wrap"><div id="artPlaceholder" class="art-placeholder"><div class="placeholder-icon">✳</div><div class="eyebrow">CHARACTER REFERENCE SHEET</div><h3>Your visual development starts here.</h3><p>Save a few character details, then generate your first visual reference.</p><button id="generateBtn" class="button primary">✦ &nbsp; Generate reference sheet</button><button id="uploadBtn" class="button secondary upload-button">Upload an image instead</button><input id="imageUpload" class="hidden" type="file" accept="image/png,image/jpeg,image/webp"><span class="provider-hint" id="providerHint">Connect a local image model to generate imagery.</span></div><div id="artImageFrame" class="art-image-frame hidden"><img id="artImage" alt="Generated character reference sheet"><div class="image-caption"><span>Latest visual reference</span><span id="imageDate"></span><button id="replaceImageBtn" class="caption-upload">Upload / replace</button></div></div></div></div>
+        </div>
+        <div id="historyTab" class="tab-content hidden"><div class="history-panel"><div class="section-head"><div><h2>Version history</h2><p>Every edit, generation, and approval is recorded.</p></div><span class="step-number">↺</span></div><div id="historyList" class="history-list"></div></div></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <dialog id="projectDialog"><form method="dialog" id="projectForm"><div class="dialog-top"><span class="assist-icon">✧</span><button class="close-dialog" aria-label="Close">×</button></div><div class="eyebrow">NEW PROJECT</div><h2>What are you creating?</h2><p>Keep your characters, reference art, and future scenes in one film workspace.</p><label class="field"><span>Project name</span><input id="projectName" maxlength="100" required placeholder="e.g. The Sky Between Us"></label><label class="field"><span>Short description <small>OPTIONAL</small></span><textarea id="projectDescription" rows="2" maxlength="1000" placeholder="A one-line project note"></textarea></label><button type="submit" class="button primary full-width">Create project</button></form></dialog>
+  <dialog id="helpDialog"><form method="dialog"><button class="close-dialog help-close" aria-label="Close">×</button><div class="eyebrow">A NOTE ON THE WORKFLOW</div><h2>Keep the human in the loop.</h2><p>The agent can help shape a brief and create visual directions. You stay in charge of the character: review the details, save revisions, and approve the design when it is ready.</p><p>Approved character details and reference art are intended to carry forward into storyboards and film shots.</p><button class="button secondary full-width">Got it</button></form></dialog>
+  <script src="/app.js" defer></script>
+</body>
+</html>

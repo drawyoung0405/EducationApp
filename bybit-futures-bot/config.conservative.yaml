@@ -1,0 +1,7 @@
+# Unspecified values inherit validated defaults.
+mode: dry_run
+exit_model: atr
+risk_fraction: '0.005'
+no_profit_replenishment: true
+max_margin: '50'
+leverage: 3

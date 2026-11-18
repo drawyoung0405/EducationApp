@@ -16,6 +16,7 @@
       <a class="brand" href="/" aria-label="Character Studio home"><span class="brand-mark">✳</span><span>STORY<span class="brand-light">FORGE</span><small>CHARACTER STUDIO</small></span></a>
       <div class="side-label">WORKSPACE</div>
       <div class="project-picker"><span class="project-dot"></span><select id="projectSelect" aria-label="Choose project"></select><button id="newProjectBtn" class="icon-button" title="Create project" aria-label="Create project">＋</button></div>
+      <button id="filmWorkspaceBtn" class="workspace-link" type="button">🎬 &nbsp; Film plan</button>
       <div class="side-heading"><span>CHARACTERS</span><button id="newCharacterBtn" class="tiny-plus" aria-label="New character" title="New character">＋</button></div>
       <nav id="characterList" class="character-list" aria-label="Characters"></nav>
       <div class="sidebar-bottom"><div class="mini-avatar">✦</div><div><strong>Character Studio</strong><span>Creative workspace</span></div><span class="online-dot"></span></div>
@@ -30,7 +31,8 @@
 
       <section id="editor" class="editor hidden">
         <div class="editor-heading"><div><div class="eyebrow">CHARACTER DESIGN</div><h1 id="characterTitle">Untitled character</h1><p id="characterSub">Build a character bible and develop the visual reference.</p></div><div class="heading-actions"><span id="approvalBadge" class="draft-badge">● &nbsp; Draft</span><button id="approveBtn" class="button approve-button">Approve design <span>✓</span></button></div></div>
-        <div class="tabbar"><button class="tab active" data-tab="character">Character bible</button><button class="tab" data-tab="artwork">Visual reference <span id="artCount" class="tab-count">0</span></button><button class="tab" data-tab="history">Version history</button></div>
+        <div class="tabbar"><button class="tab" data-tab="film">Film plan</button><button class="tab active" data-tab="character">Character bible</button><button class="tab" data-tab="artwork">Visual reference <span id="artCount" class="tab-count">0</span></button><button class="tab" data-tab="history">Version history</button></div>
+        <div id="filmTab" class="tab-content hidden"><div class="film-panel"><div class="section-head"><div><h2>Story foundation</h2><p>Shape the short before you plan its shots.</p></div><span class="step-number">01</span></div><div class="field-grid"><label class="field span-two"><span>Logline</span><input id="filmLogline" maxlength="1000" placeholder="A focused one-sentence description of the film"></label><label class="field span-two"><span>Story outline</span><textarea id="filmOutline" rows="5" maxlength="12000" placeholder="Beginning, turning point, ending..."></textarea></label></div><div class="section-head"><div><h2>Scenes and shots</h2><p>Break the story into scenes, then track each shot through production.</p></div><button id="addSceneBtn" class="button secondary">＋ Add scene</button></div><div id="sceneList" class="scene-list"></div></div></div>
         <div id="characterTab" class="tab-content">
           <div class="editor-grid">
             <div class="form-column">

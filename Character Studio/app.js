@@ -5,6 +5,7 @@ let activeProjectId = "";
 let activeCharacter = null;
 let saveTimer = null;
 let saving = false;
+let filmSaveTimer = 0;
 let toastTimer = null;
 
 const $ = (id) => document.getElementById(id);
@@ -76,6 +77,7 @@ async function loadProjects(preferredId = "") {
   select.value = activeProjectId;
   $("crumbProject").textContent = projects.find((project) => project.id === activeProjectId)?.name || "Project";
   await loadCharacters();
+  await loadFilmPlan();
 }
 
 async function loadCharacters(selectId = "") {
@@ -164,6 +166,7 @@ function bindEvents() {
     activeProjectId = event.target.value;
     $("crumbProject").textContent = projects.find((project) => project.id === activeProjectId)?.name || "Project";
     await loadCharacters();
+    await loadFilmPlan();
   });
   $("saveBtn").addEventListener("click", () => saveCharacter(true));
   fieldNames.forEach((field) => {
@@ -185,12 +188,63 @@ function bindEvents() {
   document.querySelectorAll(".tab").forEach((button) => button.addEventListener("click", () => activateTab(button.dataset.tab)));
   $("helpBtn").addEventListener("click", () => $("helpDialog").showModal());
   $("projectForm").addEventListener("submit", createProject);
+  $("filmWorkspaceBtn").addEventListener("click", () => activateTab("film"));
+  $("addSceneBtn").addEventListener("click", addScene);
+  ["filmLogline", "filmOutline"].forEach((id) => $(id).addEventListener("input", () => {
+    clearTimeout(filmSaveTimer); filmSaveTimer = setTimeout(saveFilmPlan, 500);
+  }));
 }
 
 function activateTab(tabName) {
   document.querySelectorAll(".tab").forEach((button) => button.classList.toggle("active", button.dataset.tab === tabName));
-  ["character", "artwork", "history"].forEach((name) => $(`${name}Tab`).classList.toggle("hidden", name !== tabName));
+  ["film", "character", "artwork", "history"].forEach((name) => $(`${name}Tab`).classList.toggle("hidden", name !== tabName));
+  if (tabName === "film") loadFilmPlan();
   if (tabName === "history" && activeCharacter) loadHistory();
+}
+
+async function loadFilmPlan() {
+  if (!activeProjectId || !$('sceneList')) return;
+  try {
+    const plan = await api(`/api/projects/${activeProjectId}/film-plan`);
+    $("filmLogline").value = plan.logline || ""; $("filmOutline").value = plan.outline || "";
+    renderScenes(plan.scenes || []);
+  } catch (error) { toast(error.message, true); }
+}
+
+async function saveFilmPlan() {
+  if (!activeProjectId) return;
+  try { await api(`/api/projects/${activeProjectId}/film-plan`, { method: "POST", body: JSON.stringify({ logline: $("filmLogline").value, outline: $("filmOutline").value }) }); }
+  catch (error) { toast(error.message, true); }
+}
+
+function renderScenes(scenes) {
+  const list = $("sceneList"); list.replaceChildren();
+  if (!scenes.length) { const empty = document.createElement("p"); empty.className = "empty-scenes"; empty.textContent = "No scenes yet. Add the opening scene to start your animatic plan."; list.append(empty); return; }
+  scenes.forEach((scene, index) => {
+    const card = document.createElement("section"); card.className = "scene-card";
+    const heading = document.createElement("div"); heading.className = "scene-heading";
+    const title = document.createElement("input"); title.value = scene.title; title.setAttribute("aria-label", `Scene ${index + 1} title`);
+    title.addEventListener("change", () => api(`/api/scenes/${scene.id}`, { method: "PATCH", body: JSON.stringify({ title: title.value }) }).catch((e) => toast(e.message, true)));
+    const badge = document.createElement("span"); badge.textContent = `SCENE ${String(index + 1).padStart(2, "0")}`; heading.append(badge, title);
+    const summary = document.createElement("textarea"); summary.rows = 2; summary.placeholder = "What happens in this scene?"; summary.value = scene.summary;
+    summary.addEventListener("change", () => api(`/api/scenes/${scene.id}`, { method: "PATCH", body: JSON.stringify({ summary: summary.value }) }).catch((e) => toast(e.message, true)));
+    const shots = document.createElement("div"); shots.className = "shot-list";
+    (scene.shots || []).forEach((shot) => {
+      const row = document.createElement("div"); row.className = "shot-row";
+      const desc = document.createElement("input"); desc.value = shot.description; desc.placeholder = "Shot description"; desc.addEventListener("change", () => api(`/api/shots/${shot.id}`, { method: "PATCH", body: JSON.stringify({ description: desc.value }) }).catch((e) => toast(e.message, true)));
+      const duration = document.createElement("input"); duration.value = shot.duration; duration.placeholder = "Duration"; duration.setAttribute("aria-label", "Shot duration"); duration.addEventListener("change", () => api(`/api/shots/${shot.id}`, { method: "PATCH", body: JSON.stringify({ duration: duration.value }) }).catch((e) => toast(e.message, true)));
+      const status = document.createElement("select"); ["planned", "boarding", "ready", "done"].forEach((value) => { const option = document.createElement("option"); option.value = value; option.textContent = value; status.append(option); }); status.value = shot.status; status.addEventListener("change", () => api(`/api/shots/${shot.id}`, { method: "PATCH", body: JSON.stringify({ status: status.value }) }).catch((e) => toast(e.message, true)));
+      row.append(desc, duration, status); shots.append(row);
+    });
+    const addShot = document.createElement("button"); addShot.type = "button"; addShot.className = "text-button"; addShot.textContent = "+ Add shot"; addShot.addEventListener("click", async () => { await api(`/api/scenes/${scene.id}/shots`, { method: "POST", body: "{}" }); loadFilmPlan(); });
+    card.append(heading, summary, shots, addShot); list.append(card);
+  });
+}
+
+async function addScene() {
+  if (!activeProjectId) return;
+  try { await api(`/api/projects/${activeProjectId}/scenes`, { method: "POST", body: JSON.stringify({}) }); await loadFilmPlan(); }
+  catch (error) { toast(error.message, true); }
 }
 
 function openProjectDialog() {

@@ -65,6 +65,20 @@ def init_db() -> None:
                 id INTEGER PRIMARY KEY AUTOINCREMENT, character_id TEXT NOT NULL REFERENCES characters(id) ON DELETE CASCADE,
                 snapshot TEXT NOT NULL, created_at TEXT NOT NULL, event TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS film_plans (
+                project_id TEXT PRIMARY KEY REFERENCES projects(id) ON DELETE CASCADE,
+                logline TEXT NOT NULL DEFAULT '', outline TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS scenes (
+                id TEXT PRIMARY KEY, project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+                title TEXT NOT NULL DEFAULT '', summary TEXT NOT NULL DEFAULT '', sort_order INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS shots (
+                id TEXT PRIMARY KEY, scene_id TEXT NOT NULL REFERENCES scenes(id) ON DELETE CASCADE,
+                description TEXT NOT NULL DEFAULT '', duration TEXT NOT NULL DEFAULT '', status TEXT NOT NULL DEFAULT 'planned',
+                sort_order INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+            );
         """)
 
 
@@ -247,6 +261,21 @@ class Handler(BaseHTTPRequestHandler):
                     rows = db.execute("""SELECT p.*, COUNT(c.id) AS character_count FROM projects p
                         LEFT JOIN characters c ON c.project_id=p.id GROUP BY p.id ORDER BY p.updated_at DESC""").fetchall()
                 self.send_json([dict(row) for row in rows]); return
+            match = re.fullmatch(r"/api/projects/([\w-]+)/film-plan", path)
+            if match:
+                project_id = match.group(1)
+                with connect() as db:
+                    project = db.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone()
+                    if not project: raise ValueError("Project not found.")
+                    plan = db.execute("SELECT * FROM film_plans WHERE project_id=?", (project_id,)).fetchone()
+                    scenes = db.execute("SELECT * FROM scenes WHERE project_id=? ORDER BY sort_order,created_at", (project_id,)).fetchall()
+                    result = {"logline": plan["logline"] if plan else "", "outline": plan["outline"] if plan else "",
+                              "scenes": []}
+                    for scene in scenes:
+                        item = dict(scene)
+                        item["shots"] = [dict(shot) for shot in db.execute("SELECT * FROM shots WHERE scene_id=? ORDER BY sort_order,created_at", (scene["id"],)).fetchall()]
+                        result["scenes"].append(item)
+                self.send_json(result); return
             match = re.fullmatch(r"/api/projects/([\w-]+)/characters", path)
             if match:
                 with connect() as db:
@@ -289,6 +318,32 @@ class Handler(BaseHTTPRequestHandler):
                     db.execute("INSERT INTO projects(id,name,description,created_at,updated_at) VALUES(?,?,?,?,?)",
                                (project_id, name, clean(data.get("description"), 1000), now(), now()))
                 self.send_json({"id": project_id, "name": name}); return
+            match = re.fullmatch(r"/api/projects/([\w-]+)/film-plan", self.path)
+            if match:
+                project_id = match.group(1)
+                with connect() as db:
+                    if not db.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone(): raise ValueError("Project not found.")
+                    db.execute("INSERT INTO film_plans(project_id,logline,outline,updated_at) VALUES(?,?,?,?) ON CONFLICT(project_id) DO UPDATE SET logline=excluded.logline,outline=excluded.outline,updated_at=excluded.updated_at",
+                               (project_id, clean(data.get("logline"), 1000), clean(data.get("outline"), 12000), now()))
+                self.send_json({"ok": True}); return
+            match = re.fullmatch(r"/api/projects/([\w-]+)/scenes", self.path)
+            if match:
+                project_id = match.group(1); scene_id = str(uuid.uuid4()); stamp = now()
+                with connect() as db:
+                    if not db.execute("SELECT 1 FROM projects WHERE id=?", (project_id,)).fetchone(): raise ValueError("Project not found.")
+                    order = db.execute("SELECT COUNT(*) FROM scenes WHERE project_id=?", (project_id,)).fetchone()[0]
+                    db.execute("INSERT INTO scenes(id,project_id,title,summary,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                               (scene_id, project_id, clean(data.get("title"), 120) or "New scene", clean(data.get("summary"), 3000), order, stamp, stamp))
+                self.send_json({"id": scene_id}, 201); return
+            match = re.fullmatch(r"/api/scenes/([\w-]+)/shots", self.path)
+            if match:
+                scene_id = match.group(1); shot_id = str(uuid.uuid4()); stamp = now()
+                with connect() as db:
+                    if not db.execute("SELECT 1 FROM scenes WHERE id=?", (scene_id,)).fetchone(): raise ValueError("Scene not found.")
+                    order = db.execute("SELECT COUNT(*) FROM shots WHERE scene_id=?", (scene_id,)).fetchone()[0]
+                    db.execute("INSERT INTO shots(id,scene_id,description,duration,status,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)",
+                               (shot_id, scene_id, clean(data.get("description"), 2000) or "New shot", clean(data.get("duration"), 40), "planned", order, stamp, stamp))
+                self.send_json({"id": shot_id}, 201); return
             match = re.fullmatch(r"/api/projects/([\w-]+)/characters", self.path)
             if match:
                 project_id = match.group(1); character_id = str(uuid.uuid4()); stamp = now()
@@ -324,6 +379,24 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json({"error": str(exc)}, 500)
 
     def do_PATCH(self) -> None:
+        match = re.fullmatch(r"/api/(scenes|shots)/([\w-]+)", self.path)
+        if match:
+            kind, item_id = match.groups()
+            try:
+                data = self.body()
+                allowed = {"title": 120, "summary": 3000} if kind == "scenes" else {"description": 2000, "duration": 40, "status": 30}
+                values = {key: clean(data[key], limit) for key, limit in allowed.items() if key in data}
+                if not values: raise ValueError("No fields were provided.")
+                if kind == "shots" and "status" in values and values["status"] not in ("planned", "boarding", "ready", "done"):
+                    raise ValueError("Choose a valid shot status.")
+                with connect() as db:
+                    assignments = ",".join(f"{key}=?" for key in values)
+                    cur = db.execute(f"UPDATE {kind} SET {assignments},updated_at=? WHERE id=?", (*values.values(), now(), item_id))
+                    if not cur.rowcount: raise ValueError(f"{kind[:-1].title()} not found.")
+                self.send_json({"ok": True})
+            except ValueError as exc: self.send_json({"error": str(exc)}, 400)
+            except Exception as exc: self.send_json({"error": str(exc)}, 500)
+            return
         match = re.fullmatch(r"/api/characters/([\w-]+)", self.path)
         if not match: self.send_error(404); return
         try:

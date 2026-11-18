@@ -79,7 +79,8 @@ function App() {
   useEffect(() => {
     setPageSize(30);
   }, [query, filter, listBand]);
-  const filtered = useMemo(() => words.filter((w) => (filter === "saved" ? saved.has(w.id) : filter === "learned" ? known.has(w.id) : true) && (listBand === "all" || (listBand === "countries" ? w.type === "country" : String(w.band) === listBand)) && (!query || [w.hanzi, w.pinyin, w.meaning].join(" ").toLowerCase().includes(query.trim().toLowerCase()))), [words, saved, known, filter, listBand, query]);
+  const normalizePinyin = (value) => String(value || '').toLowerCase().replace(/\u00fc/g, 'u').normalize('NFD').replace(/[\u0300-\u036f\s'\u2019\u00b7]/g, '').replace(/v/g, 'u');
+  const filtered = useMemo(() => words.filter((w) => (filter === "saved" ? saved.has(w.id) : filter === "learned" ? known.has(w.id) : true) && (listBand === "all" || (listBand === "countries" ? w.type === "country" : String(w.band) === listBand)) && (!query.trim() || [w.hanzi, w.meaning].some((value) => String(value || '').toLowerCase().includes(query.trim().toLowerCase())) || normalizePinyin(w.pinyin).includes(normalizePinyin(query)))), [words, saved, known, filter, listBand, query]);
   const visible = filtered.slice(0, pageSize);
   const say = (w) => {
     if (!w?.hanzi) return;

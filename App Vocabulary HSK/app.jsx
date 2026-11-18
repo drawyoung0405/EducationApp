@@ -50,7 +50,8 @@
       useEffect(()=>{if(!toast)return;const id=setTimeout(()=>setToast(''),2100);return()=>clearTimeout(id)},[toast]);
       useEffect(()=>{setPageSize(30)},[query,filter,listBand]);
 
-      const filtered=useMemo(()=>words.filter(w=>(filter==='saved'?saved.has(w.id):filter==='learned'?known.has(w.id):true)&&(listBand==='all'||(listBand==='countries'?w.type==='country':String(w.band)===listBand))&&(!query||[w.hanzi,w.pinyin,w.meaning].join(' ').toLowerCase().includes(query.trim().toLowerCase()))),[words,saved,known,filter,listBand,query]);
+    const normalizePinyin = (value) => String(value || '').toLowerCase().replace(/\u00fc/g, 'u').normalize('NFD').replace(/[\u0300-\u036f\s'\u2019\u00b7]/g, '').replace(/v/g, 'u');
+    const filtered=useMemo(()=>words.filter(w=>(filter==='saved'?saved.has(w.id):filter==='learned'?known.has(w.id):true)&&(listBand==='all'||(listBand==='countries'?w.type==='country':String(w.band)===listBand))&&(!query.trim()||[w.hanzi,w.meaning].some(value=>String(value||'').toLowerCase().includes(query.trim().toLowerCase()))||normalizePinyin(w.pinyin).includes(normalizePinyin(query)))),[words,saved,known,filter,listBand,query]);
       const visible=filtered.slice(0,pageSize);
       const say=(w)=>{if(!w?.hanzi)return;if(!('speechSynthesis'in window)){setToast('Speech playback is not supported in this browser');return}window.speechSynthesis.cancel();const utterance=new SpeechSynthesisUtterance(w.hanzi);utterance.lang='zh-CN';utterance.rate=.85;const voice=window.speechSynthesis.getVoices().find(v=>/^zh(-|_)?(CN|Hans)?/i.test(v.lang))||window.speechSynthesis.getVoices().find(v=>/^zh/i.test(v.lang));if(voice)utterance.voice=voice;window.speechSynthesis.speak(utterance)};
       const persistDeck=(b=band)=>words.filter(w=>+w.band===+b&&!known.has(w.id)).slice(0,10);
